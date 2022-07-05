@@ -479,9 +479,9 @@ function process_turn(profile, turn)
 
   if turn.number_of_roads > 2 or turn.source_mode ~= turn.target_mode or turn.is_u_turn then
     if turn.angle >= 0 then
-      turn.duration = turn.is_left_hand_driving and turn.duration + penalty_for_opposide_turn or turn.duration
+      turn.duration = turn.is_left_hand_driving and turn.duration + penalty_for_turn or turn.duration
     else
-      turn.duration = turn.is_left_hand_driving and turn.duration or turn.duration + penalty_for_opposide_turn 
+      turn.duration = turn.is_left_hand_driving and turn.duration or turn.duration + penalty_for_turn 
     end
 
     if turn.is_u_turn then
