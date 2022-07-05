@@ -494,15 +494,14 @@ function process_turn(profile, turn)
      turn.weight = 0
   else
      if turn.number_of_roads > 2 or turn.source_mode ~= turn.target_mode or turn.is_u_turn then
-      penalty = constants.max_turn_weight / 2
       if turn.angle >= 0 then
-        turn.weight = turn.is_left_hand_driving and turn.weight + penalty or turn.weight
+        turn.weight = turn.is_left_hand_driving and turn.weight + constants.max_turn_weight or turn.weight
       else
-        turn.weight = turn.is_left_hand_driving and turn.weight or turn.weight + penalty 
+        turn.weight = turn.is_left_hand_driving and turn.weight or turn.weight + constants.max_turn_weight 
       end
 
       if turn.is_u_turn then
-        turn.weight = turn.duration + penalty
+        turn.weight = turn.duration + constants.max_turn_weight
       end
       
     end
