@@ -493,7 +493,19 @@ function process_turn(profile, turn)
   if profile.properties.weight_name == 'distance' then
      turn.weight = 0
   else
-     turn.weight = turn.duration
+     if turn.number_of_roads > 2 or turn.source_mode ~= turn.target_mode or turn.is_u_turn then
+      if turn.angle >= 0 then
+        turn.weight = turn.is_left_hand_driving and turn.weight + constants.max_turn_weight or turn.weight
+      else
+        turn.weight = turn.is_left_hand_driving and turn.weight or turn.weight + constants.max_turn_weight 
+      end
+
+      if turn.is_u_turn then
+        turn.weight = turn.duration + constants.max_turn_weight
+      end
+      
+    end
+
   end
 
   if profile.properties.weight_name == 'routability' then
