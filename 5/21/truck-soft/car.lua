@@ -480,6 +480,7 @@ function process_turn(profile, turn)
   -- the function to some turn penalty samples from real driving.
   local turn_penalty = profile.turn_penalty
   local turn_bias = turn.is_left_hand_driving and 1. / profile.turn_bias or profile.turn_bias
+  penalty_for_turn = turn_penalty / (1 + math.exp( -((13 / turn_bias) *  turn.angle/180 - 6.5*turn_bias)))
 
   if turn.has_traffic_light then
       turn.duration = profile.properties.traffic_light_penalty
@@ -487,9 +488,9 @@ function process_turn(profile, turn)
 
   if turn.number_of_roads > 2 or turn.source_mode ~= turn.target_mode or turn.is_u_turn then
     if turn.angle >= 0 then
-      turn.duration = turn.duration + turn_penalty / (1 + math.exp( -((13 / turn_bias) *  turn.angle/180 - 6.5*turn_bias)))
+      turn.duration = turn.is_left_hand_driving and turn.duration + penalty_for_turn or turn.duration
     else
-      turn.duration = turn.duration + turn_penalty / (1 + math.exp( -((13 * turn_bias) * -turn.angle/180 - 6.5/turn_bias)))
+      turn.duration = turn.is_left_hand_driving and turn.duration or turn.duration + penalty_for_turn 
     end
 
     if turn.is_u_turn then
