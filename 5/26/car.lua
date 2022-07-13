@@ -14,7 +14,7 @@ Measure = require("lib/measure")
 function setup()
   return {
     properties = {
-      max_speed_for_map_matching      = 150/3.6, -- 150kmph -> m/s
+      max_speed_for_map_matching      = 180/3.6, -- 180kmph -> m/s
       -- For routing based on duration, but weighted for preferring certain roads
       weight_name                     = 'routability',
       -- For shortest duration without penalties for accessibility
@@ -22,7 +22,7 @@ function setup()
       -- For shortest distance without penalties for accessibility
       -- weight_name                     = 'distance',
       process_call_tagless_node      = false,
-      u_turn_penalty                 = 30,
+      u_turn_penalty                 = 20,
       continue_straight_at_waypoint  = true,
       use_turn_restrictions          = true,
       left_hand_driving              = false,
@@ -33,18 +33,18 @@ function setup()
     default_speed             = 10,
     oneway_handling           = true,
     side_road_multiplier      = 0.8,
-    turn_penalty              = 25,
+    turn_penalty              = 7.5,
     speed_reduction           = 0.8,
     turn_bias                 = 1.075,
     cardinal_directions       = false,
 
     -- Size of the vehicle, to be limited by physical restriction of the way
-    vehicle_height = 2.8, -- in meters
-    vehicle_width = 2.2, -- in meters
+    vehicle_height = 2.0, -- in meters, 2.0m is the height slightly above biggest SUVs
+    vehicle_width = 1.9, -- in meters, ways with narrow tag are considered narrower than 2.2m
 
     -- Size of the vehicle, to be limited mostly by legal restriction of the way
-    vehicle_length = 6.0, -- in meters, 4.8m is the length of large or familly car
-    vehicle_weight = 6000, -- in kilograms
+    vehicle_length = 4.8, -- in meters, 4.8m is the length of large or family car
+    vehicle_weight = 2000, -- in kilograms
 
     -- a list of suffixes to suppress in name change instructions. The suffixes also include common substrings of each other
     suffix_list = {
@@ -60,7 +60,8 @@ function setup()
       'lift_gate',
       'no',
       'entrance',
-      'height_restrictor'
+      'height_restrictor',
+      'arch'
     },
 
     access_tag_whitelist = Set {
@@ -153,24 +154,6 @@ function setup()
         living_street   = 10,
         service         = 15
       }
-    },
-
-    highway_penalties = {
-      motorway        = 1,
-      motorway_link   = 1,
-      trunk           = 1,
-      trunk_link      = 1,
-      primary         = 1,
-      primary_link    = 1,
-      secondary       = 1,
-      secondary_link  = 1,
-      tertiary        = 0.9,
-      tertiary_link   = 0.9,
-      unclassified    = 0.8,
-      residential     = 0.7,
-      living_street   = 0.3,
-      service         = 0.2,
-      track           = 0.1
     },
 
     service_penalties = {
@@ -287,6 +270,8 @@ function setup()
       ["at:rural"] = 100,
       ["at:trunk"] = 100,
       ["be:motorway"] = 120,
+      ["be-bru:rural"] = 70,
+      ["be-bru:urban"] = 30,
       ["be-vlg:rural"] = 70,
       ["by:urban"] = 60,
       ["by:motorway"] = 110,
@@ -350,14 +335,25 @@ function process_node(profile, node, result, relations)
       local restricted_by_height = false
       if barrier == 'height_restrictor' then
          local maxheight = Measure.get_max_height(node:get_value_by_key("maxheight"), node)
-         restricted_by_height = maxheight and tonumber(maxheight) and tonumber(maxheight) < profile.vehicle_height
+         restricted_by_height = maxheight and maxheight < profile.vehicle_height
       end
 
       --  make an exception for rising bollard barriers
       local bollard = node:get_value_by_key("bollard")
       local rising_bollard = bollard and "rising" == bollard
 
-      if not profile.barrier_whitelist[barrier] and not rising_bollard or restricted_by_height then
+      -- make an exception for lowered/flat barrier=kerb
+      -- and incorrect tagging of highway crossing kerb as highway barrier
+      local kerb = node:get_value_by_key("kerb")
+      local highway = node:get_value_by_key("highway")
+      local flat_kerb = kerb and ("lowered" == kerb or "flush" == kerb)
+      local highway_crossing_kerb = barrier == "kerb" and highway and highway == "crossing"
+
+      if not profile.barrier_whitelist[barrier]
+                and not rising_bollard
+                and not flat_kerb
+                and not highway_crossing_kerb
+                or restricted_by_height then
         result.barrier = true
       end
     end
@@ -436,14 +432,9 @@ function process_way(profile, way, result, relations)
 
     -- compute speed taking into account way type, maxspeed tags, etc.
     WayHandlers.speed,
-    WayHandlers.surface,
     WayHandlers.maxspeed,
+    WayHandlers.surface,
     WayHandlers.penalties,
-
-    -- set penalty to try to follow legal access restriction
-    WayHandlers.handle_weight,
-    WayHandlers.handle_length,
-    WayHandlers.handle_hgv_access,
 
     -- compute class labels
     WayHandlers.classes,
@@ -500,9 +491,9 @@ function process_turn(profile, turn)
 
   -- for distance based routing we don't want to have penalties based on turn angle
   if profile.properties.weight_name == 'distance' then
-     turn.weight = 0
+    turn.weight = 0
   else
-     turn.weight = turn.duration
+      turn.weight = turn.duration
   end
 
   if profile.properties.weight_name == 'routability' then
